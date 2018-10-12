@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name" translatable="false">XPrivateSD</string>
+    <string name="app_description">Sandbox access for internal SD cards</string>
+    <string name="app_settings">Settings</string>
+    <string name="internal_sdcard_path">Path to internal SD card</string>
+    <string name="per_app_path">Sandbox path for apps</string>
+    <string name="include_system_apps">Include system apps</string>
+    <string name="enabled_apps">Enabled apps</string>
+    <string name="exclude_path">Exclude paths</string>
+    <string name="reboot_required">Device reboot is required for changes to take effect.</string>
+</resources>

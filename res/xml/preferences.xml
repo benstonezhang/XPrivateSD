@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory
+        android:key="app_settings"
+        android:title="@string/app_settings">
+        <EditTextPreference
+            android:key="internal_sdcard_path"
+            android:title="@string/internal_sdcard_path" />
+        <EditTextPreference
+            android:key="per_app_path"
+            android:title="@string/per_app_path" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="include_system_apps"
+            android:title="@string/include_system_apps" />
+        <MultiSelectListPreference
+            android:key="enabled_apps"
+            android:title="@string/enabled_apps" />
+        <EditTextPreference
+            android:key="exclude_path"
+            android:title="@string/exclude_path" />
+    </PreferenceCategory>
+</PreferenceScreen>
