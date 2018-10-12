@@ -1,5 +1,6 @@
 package cn.benstone.android.xposed.xprivatesd;
 
+import android.content.pm.ApplicationInfo;
 import android.text.TextUtils;
 
 import java.io.File;
@@ -32,7 +33,11 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
     public String[] excludePaths;
 
     private static void log(String s) {
-//        XposedBridge.log(s);
+        XposedBridge.log(Common.APP_NAME + ": " + s);
+    }
+
+    private static void debug(String s) {
+//        log(s);
     }
 
     @Override
@@ -46,15 +51,12 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
             return;
         }
         internalSdLen = internalSd.length();
-        log("Internal SD path: " + internalSd);
 
-        appSdBase = File.separator + prefs.getString(Common.PER_APP_PATH,
-                Common.DEFAULT_PER_APP_PATH);
-        log("App SD path base: " + appSdBase);
+        appSdBase = File.separator + prefs.getString(Common.PER_APP_PATH, Common.DEFAULT_PER_APP_PATH);
 
-        for (String path : Common.PER_APP_EXCLUDE_PATHS) {
-            log("Exclude per app path: " + path + File.separator + "<package name>");
-        }
+        debug("internal SD path is " + internalSd + ", app path base is " + appSdBase);
+        debug("exclude paths " + TextUtils.join(File.separator + "<package>" + File.pathSeparator,
+                Common.PER_APP_EXCLUDE_PATHS) + File.separator + "<package>");
 
         final String excludePathStr = prefs.getString(Common.EXCLUDE_PATH, Common.EMPTY_PATH);
         if (!excludePathStr.isEmpty()) {
@@ -62,7 +64,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
             for (int i = 0; i< excludePaths.length; i++) {
                 excludePaths[i] = File.separator + excludePaths[i].toLowerCase();
             }
-            log("Exclude paths: " + TextUtils.join(";", excludePaths));
+            debug("exclude paths " + TextUtils.join(File.pathSeparator, excludePaths));
         } else {
             excludePaths = null;
         }
@@ -80,15 +82,12 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         String packageName = lpparam.packageName;
 
         if (!isEnabledApp(lpparam)) {
-            log("XPrivateSD is disabled for " + packageName);
             return;
         }
 
         final String appSdPath = appSdBase + File.separator + packageName;
         final String appSdPath2 = appSdPath.toLowerCase();
-
-        log("XPrivateSD is enabled for " + packageName +
-                ", SDCard path: " + internalSd + appSdPath);
+        debug("app sd path is " + internalSd + appSdPath);
 
         //make missing dirs
         File perAppPath = new File(internalSd + appSdPath);
@@ -96,32 +95,29 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
             try {
                 perAppPath.mkdirs();
             } catch (Exception e) {
-                XposedBridge.log("Create app SD folder failed: " + packageName);
+                log("create app SD folder failed for " + packageName);
                 return;
             }
         }
-        log("Folder created for " + packageName);
+        debug("folder created for " + packageName);
 
         final String[] perAppExcludePaths = new String[Common.PER_APP_EXCLUDE_PATHS.length];
         for (int i=0; i<Common.PER_APP_EXCLUDE_PATHS.length; i++) {
             perAppExcludePaths[i] = File.separator + Common.PER_APP_EXCLUDE_PATHS[i].toLowerCase() +
                     File.separator + packageName.toLowerCase();
         }
-        log("Per app exclude paths: " + TextUtils.join(";", perAppExcludePaths));
+        debug("exclude paths " + TextUtils.join(File.pathSeparator, perAppExcludePaths));
 
         XC_MethodHook fileHook1 = new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 String reqPath = (String) param.args[0];
                 if ((reqPath != null) && (!reqPath.isEmpty())) {
-                    param.args[0] = getPatchedPath(reqPath, appSdPath, appSdPath2,
-                            perAppExcludePaths);
+                    param.args[0] = getPatchedPath(reqPath, appSdPath, appSdPath2, perAppExcludePaths);
                 }
             }
         };
-
-        XposedHelpers.findAndHookConstructor("java.io.File", lpparam.classLoader,
-                String.class, fileHook1);
+        XposedHelpers.findAndHookConstructor("java.io.File", lpparam.classLoader, String.class, fileHook1);
 
         XC_MethodHook fileHook2 = new XC_MethodHook() {
             @Override
@@ -133,8 +129,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 
                 if ((reqPath != null) && (!reqPath.isEmpty())) {
                     param.args[0] = null;
-                    param.args[1] = getPatchedPath(reqPath, appSdPath, appSdPath2,
-                            perAppExcludePaths);
+                    param.args[1] = getPatchedPath(reqPath, appSdPath, appSdPath2, perAppExcludePaths);
                 }
             }
         };
@@ -152,8 +147,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 
                 if ((reqPath != null) && (!reqPath.isEmpty())) {
                     param.args[0] = null;
-                    param.args[1] = getPatchedPath(reqPath, appSdPath, appSdPath2,
-                            perAppExcludePaths);
+                    param.args[1] = getPatchedPath(reqPath, appSdPath, appSdPath2, perAppExcludePaths);
                 }
             }
         };
@@ -167,14 +161,12 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
                 if ((reqURI != null) && fileScheme.equals(reqURI.getScheme())) {
                     String reqPath = reqURI.getPath();
                     if (!reqPath.isEmpty()) {
-                        param.args[0] = getPatchedPath(reqPath, appSdPath, appSdPath2,
-                                perAppExcludePaths);
+                        param.args[0] = getPatchedPath(reqPath, appSdPath, appSdPath2, perAppExcludePaths);
                     }
                 }
             }
         };
-        XposedHelpers.findAndHookConstructor("java.io.File", lpparam.classLoader,
-                URI.class, fileHook4);
+        XposedHelpers.findAndHookConstructor("java.io.File", lpparam.classLoader, URI.class, fileHook4);
 
 //        XC_MethodHook externalStorageDirHook = new XC_MethodHook() {
 //            @Override
@@ -185,8 +177,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 //                }
 //            }
 //        };
-//        XposedHelpers.findAndHookMethod(Environment.class, "getExternalStorageDirectory",
-//                externalStorageDirHook);
+//        XposedHelpers.findAndHookMethod(Environment.class, "getExternalStorageDirectory", externalStorageDirHook);
 //        XposedHelpers.findAndHookMethod(Environment.class, "getExternalStoragePublicDirectory",
 //                String.class, externalStorageDirHook);
 
@@ -199,11 +190,9 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 //                }
 //            }
 //        };
-//        XposedHelpers.findAndHookMethod(XposedHelpers.findClass(
-//                "android.app.ContextImpl", lpparam.classLoader),
+//        XposedHelpers.findAndHookMethod(XposedHelpers.findClass("android.app.ContextImpl", lpparam.classLoader),
 //                "getExternalFilesDir", String.class, externalFilesDirHook);
-//        XposedHelpers.findAndHookMethod(XposedHelpers.findClass(
-//                "android.app.ContextImpl", lpparam.classLoader),
+//        XposedHelpers.findAndHookMethod(XposedHelpers.findClass("android.app.ContextImpl", lpparam.classLoader),
 //                "getObbDir", externalFilesDirHook);
 //
 //        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -214,36 +203,33 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 //                    File[] newDirPaths = new File[oldDirPaths.length];
 //                    for (int i=0; i<oldDirPaths.length; i++) {
 //                        newDirPaths[i] = getOriginalDir(oldDirPaths[i], appSdPath2);
-//                        log("externalStorageDirs: " + newDirPaths[i]);
+//                        debug("externalStorageDirs is " + newDirPaths[i]);
 //                    }
 //                    param.setResult(newDirPaths);
 //                }
 //            };
 //
-//            XposedHelpers.findAndHookMethod(XposedHelpers.findClass(
-//                    "android.app.ContextImpl", lpparam.classLoader),
-//                    "getExternalFilesDirs", String.class,
-//                    externalStorageDirsHook);
-//            XposedHelpers.findAndHookMethod(XposedHelpers.findClass(
-//                    "android.app.ContextImpl", lpparam.classLoader),
+//            XposedHelpers.findAndHookMethod(XposedHelpers.findClass("android.app.ContextImpl", lpparam.classLoader),
+//                    "getExternalFilesDirs", String.class, externalStorageDirsHook);
+//            XposedHelpers.findAndHookMethod(XposedHelpers.findClass("android.app.ContextImpl", lpparam.classLoader),
 //                    "getObbDirs", externalStorageDirsHook);
 //        }
     }
 
     public boolean isEnabledApp(LoadPackageParam lpparam) {
-        log("Checking package: " + lpparam.packageName);
+        debug("checking package " + lpparam.packageName);
 
-        boolean isEnabled = Common.isAllowedApp(prefs, lpparam.appInfo);
-        if (!isEnabled) {
-            return isEnabled;
+        int appFlags = lpparam.appInfo == null ? ApplicationInfo.FLAG_SYSTEM : lpparam.appInfo.flags;
+        if (!Common.isAllowedApp(prefs, lpparam.packageName, appFlags)) {
+            return false;
         }
 
-        Set<String> excludeApps = prefs.getStringSet(Common.ENABLED_APPS, new HashSet<String>());
-        return (!excludeApps.isEmpty()) && excludeApps.contains(lpparam.packageName);
+        Set<String> enabledApps = prefs.getStringSet(Common.ENABLED_APPS, new HashSet<String>());
+        return (!enabledApps.isEmpty()) && enabledApps.contains(lpparam.packageName);
     }
 
     private static void prefsNotReady() {
-        XposedBridge.log("Path to internal SD card not specified, exit");
+        log("path of internal SD card not specified, exit");
     }
 
 //    private static File makeDir(String dir) {
@@ -256,10 +242,9 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 
     private static boolean isExcludePath(String path, String[] excludeList) {
         for (String excludePath : excludeList) {
-            log("check exclude path: " + excludePath);
+            debug("check exclude path " + excludePath);
             if (path.startsWith(excludePath)) {
-                // exclude path
-                log("Exclude path, bypass");
+                debug("matched, bypass");
                 return true;
             }
         }
@@ -305,7 +290,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 
     private String getPatchedPath(String reqPath, String appSdPath, String appSdPath2,
                                   String[] perAppExcludePaths) {
-        log("Request path: " + reqPath);
+        debug("request path " + reqPath);
 
         reqPath = getCanonicalPath(reqPath);
         int pathLen = reqPath.length();
@@ -317,18 +302,18 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
             if (pathLen > internalSdLen) {
                 String subPath = reqPath.substring(internalSdLen);
                 String subPath2 = subPath.toLowerCase();
-                log("sub path: " + subPath);
+                debug("sub path " + subPath);
 
                 if (subPath2.startsWith(appSdPath2)) {
                     int appSdPathLen = appSdPath2.length();
                     subPath2 = subPath2.substring(appSdPathLen);
-                    // the path is patched
+
                     if (isExcludePath(subPath2, perAppExcludePaths) ||
                             ((excludePaths != null) && isExcludePath(subPath2, excludePaths))) {
-                        log("Patched path with exclude path, revert it back");
+                        debug("patched path with exclude path, revert it back");
                         reqPath = internalSd + subPath.substring(appSdPathLen);
                     } else {
-                        log("Patched path, ignore");
+                        debug("patched path, ignore");
                     }
                 } else {
                     if ((!isExcludePath(subPath2, perAppExcludePaths)) &&
@@ -340,7 +325,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
                 reqPath = internalSd + appSdPath;
             }
 
-            log("Returned path: " + reqPath);
+            debug("returned path " + reqPath);
         }
 
         return reqPath;
@@ -353,8 +338,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 //    }
 
 //    private String getOriginalPath(String reqDir, String appSdPath) {
-//        if (reqDir.startsWith(internalSd) &&
-//                reqDir.toLowerCase().startsWith(appSdPath, internalSdLen)) {
+//        if (reqDir.startsWith(internalSd) && reqDir.toLowerCase().startsWith(appSdPath, internalSdLen)) {
 //            reqDir = internalSd + reqDir.substring(internalSdLen + appSdPath.length());
 //        }
 //        return reqDir;

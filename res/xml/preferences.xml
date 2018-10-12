@@ -4,9 +4,11 @@
         android:key="app_settings"
         android:title="@string/app_settings">
         <EditTextPreference
+            android:singleLine="true"
             android:key="internal_sdcard_path"
             android:title="@string/internal_sdcard_path" />
         <EditTextPreference
+            android:singleLine="true"
             android:key="per_app_path"
             android:title="@string/per_app_path" />
         <CheckBoxPreference

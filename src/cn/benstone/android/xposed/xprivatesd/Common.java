@@ -12,9 +12,14 @@ import java.util.Arrays;
 
 public class Common {
 
-    public static final String[] MTP_APPS = {"com.android.MtpApplication", "com.samsung.android.MtpApplication"};
+    public static final String[] MTP_APPS = {
+            "com.android.mtp",
+            "com.android.MtpApplication",
+            "com.samsung.android.MtpApplication"
+    };
 
-    public static final String APP_SETTINGS = "app_settings";
+    public static final String APP_NAME = "XPrivateSD";
+//    public static final String APP_SETTINGS = "app_settings";
     public static final String INTERNAL_SDCARD_PATH = "internal_sdcard_path";
     public static final String PER_APP_PATH = "per_app_path";
     public static final String INCLUDE_SYSTEM_APPS = "include_system_apps";
@@ -83,15 +88,15 @@ public class Common {
 //        }
 //        return TextUtils.join("\n", paths);
 //    }
-//
-    public static boolean isAllowedApp(SharedPreferences prefs, ApplicationInfo appInfo) {
-        if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0) {
+
+    public static boolean isAllowedApp(SharedPreferences prefs, String packageName, int appFlags) {
+        if ((appFlags & ApplicationInfo.FLAG_SYSTEM) != 0) {
             boolean includeSystemApps = prefs.getBoolean(INCLUDE_SYSTEM_APPS, false);
             if (!includeSystemApps) {
                 return false;
             }
         }
-        if (Arrays.asList(MTP_APPS).contains(appInfo.packageName)) {
+        if (Arrays.asList(MTP_APPS).contains(packageName)) {
             return false;
         }
         return true;

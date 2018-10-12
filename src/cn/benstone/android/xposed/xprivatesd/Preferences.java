@@ -32,8 +32,7 @@ public class Preferences extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         context = getApplicationContext();
-        getFragmentManager().beginTransaction().replace(android.R.id.content,
-                new Settings()).commit();
+        getFragmentManager().beginTransaction().replace(android.R.id.content, new Settings()).commit();
     }
 
     @SuppressWarnings("deprecation")
@@ -49,15 +48,13 @@ public class Preferences extends Activity {
             if (internalSd == null) {
                 internalSd = Common.getInternalStoragePath();
             }
-            EditTextPreference internalSdPath = (EditTextPreference) findPreference(
-                    Common.INTERNAL_SDCARD_PATH);
+            EditTextPreference internalSdPath = (EditTextPreference) findPreference(Common.INTERNAL_SDCARD_PATH);
             internalSdPath.setSummary(internalSd);
             internalSdPath.setText(internalSd);
             internalSdPath.setEnabled(false);
 
             String perAppPath = prefs.getString(Common.PER_APP_PATH, Common.DEFAULT_PER_APP_PATH);
-            EditTextPreference patchedInternalSdPath = (EditTextPreference) findPreference(
-                    Common.PER_APP_PATH);
+            EditTextPreference patchedInternalSdPath = (EditTextPreference) findPreference(Common.PER_APP_PATH);
             patchedInternalSdPath.setSummary(perAppPath);
             patchedInternalSdPath.setText(perAppPath);
             patchedInternalSdPath.setOnPreferenceChangeListener(
@@ -75,11 +72,10 @@ public class Preferences extends Activity {
                     });
 
             String excludePath = prefs.getString(Common.EXCLUDE_PATH, Common.EMPTY_PATH);
-            EditTextPreference excludeSdPath = (EditTextPreference) findPreference(
-                    Common.EXCLUDE_PATH);
-            excludeSdPath.setSummary(excludePath);
-            excludeSdPath.setText(excludePath);
-            excludeSdPath.setOnPreferenceChangeListener(
+            EditTextPreference excludePathEdit = (EditTextPreference) findPreference(Common.EXCLUDE_PATH);
+            excludePathEdit.setSummary(excludePath);
+            excludePathEdit.setText(excludePath);
+            excludePathEdit.setOnPreferenceChangeListener(
                     new Preference.OnPreferenceChangeListener() {
                         @Override
                         public boolean onPreferenceChange(Preference preference, Object newValue) {
@@ -124,17 +120,15 @@ public class Preferences extends Activity {
         }
 
         public class LoadApps extends AsyncTask<Void, Void, Void> {
-            MultiSelectListPreference excludeApps = (MultiSelectListPreference) findPreference(
-                    Common.ENABLED_APPS);
+            MultiSelectListPreference enabledApps = (MultiSelectListPreference) findPreference(Common.ENABLED_APPS);
             List<CharSequence> appNames = new ArrayList<>();
             List<CharSequence> packageNames = new ArrayList<>();
             PackageManager pm = context.getPackageManager();
-            List<ApplicationInfo> packages = pm
-                    .getInstalledApplications(PackageManager.GET_META_DATA);
+            List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
 
             @Override
             protected void onPreExecute() {
-                excludeApps.setEnabled(false);
+                enabledApps.setEnabled(false);
             }
 
             @Override
@@ -142,7 +136,7 @@ public class Preferences extends Activity {
                 List<String[]> sortedApps = new ArrayList<>();
 
                 for (ApplicationInfo app : packages) {
-                    if (Common.isAllowedApp(prefs, app)) {
+                    if (Common.isAllowedApp(prefs, app.packageName, app.flags)) {
                         sortedApps.add(new String[]{
                                 app.packageName,
                                 app.loadLabel(pm).toString()});
@@ -157,15 +151,14 @@ public class Preferences extends Activity {
                 });
 
                 // put selected package at head of the list
-                Set<String> excludeAppSet = prefs.getStringSet(Common.ENABLED_APPS,
-                        new HashSet<String>());
+                Set<String> enabledAppSet = prefs.getStringSet(Common.ENABLED_APPS, new HashSet<String>());
                 List<CharSequence> unselectedAppNames = new ArrayList<>();
                 List<CharSequence> unselectedPackageNames = new ArrayList<>();
                 List<CharSequence> app;
                 List<CharSequence> pkg;
                 for (String[] sortedApp : sortedApps) {
                     String packageName = sortedApp[0];
-                    if (excludeAppSet.contains(packageName)) {
+                    if (enabledAppSet.contains(packageName)) {
                         app = appNames;
                         pkg = packageNames;
                     } else {
@@ -185,12 +178,11 @@ public class Preferences extends Activity {
             @Override
             protected void onPostExecute(Void result) {
                 CharSequence[] appNamesList = appNames.toArray(new CharSequence[appNames.size()]);
-                CharSequence[] packageNamesList = packageNames.toArray(
-                        new CharSequence[packageNames.size()]);
+                CharSequence[] packageNamesList = packageNames.toArray(new CharSequence[packageNames.size()]);
 
-                excludeApps.setEntries(appNamesList);
-                excludeApps.setEntryValues(packageNamesList);
-                excludeApps.setEnabled(true);
+                enabledApps.setEntries(appNamesList);
+                enabledApps.setEntryValues(packageNamesList);
+                enabledApps.setEnabled(true);
 
                 Preference.OnPreferenceClickListener listener = new Preference.OnPreferenceClickListener() {
                     @Override
@@ -202,7 +194,7 @@ public class Preferences extends Activity {
                     }
                 };
 
-                excludeApps.setOnPreferenceClickListener(listener);
+                enabledApps.setOnPreferenceClickListener(listener);
             }
         }
     }
