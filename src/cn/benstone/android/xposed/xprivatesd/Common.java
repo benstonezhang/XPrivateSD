@@ -29,7 +29,6 @@ public class Common {
     public static final String EXCLUDE_PATH = "exclude_path";
 
     public static final String DEFAULT_PER_APP_PATH = "AppSD";
-    public static final String[] PER_APP_EXCLUDE_PATHS = { "Android/data", "Android/obb"};
     public static final String EMPTY_PATH = "";
 
     public static final String wrapString = "\n";
