@@ -18,8 +18,10 @@ public class Common {
             "com.samsung.android.MtpApplication"
     };
 
+    public static final String DATA_PATH = "/data/data";
+
     public static final String APP_NAME = "XPrivateSD";
-//    public static final String APP_SETTINGS = "app_settings";
+    //public static final String APP_SETTINGS = "app_settings";
     public static final String INTERNAL_SDCARD_PATH = "internal_sdcard_path";
     public static final String PER_APP_PATH = "per_app_path";
     public static final String INCLUDE_SYSTEM_APPS = "include_system_apps";

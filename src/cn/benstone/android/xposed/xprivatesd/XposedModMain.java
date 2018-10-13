@@ -5,6 +5,8 @@ import android.text.TextUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -38,6 +40,12 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 
     private static void debug(String s) {
 //        log(s);
+    }
+
+    private static void trace(String s) {
+        StringWriter sw = new StringWriter();
+        new Throwable(s).printStackTrace(new PrintWriter(sw));
+        log(sw.toString());
     }
 
     @Override
@@ -85,9 +93,10 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
             return;
         }
 
+        final String appDataPath = Common.DATA_PATH + File.separator + packageName;
         final String appSdPath = appSdBase + File.separator + packageName;
         final String appSdPath2 = appSdPath.toLowerCase();
-        debug("app sd path is " + internalSd + appSdPath);
+        debug("app data path is " + appDataPath + ", sd path is " + internalSd + appSdPath);
 
         //make missing dirs
         File perAppPath = new File(internalSd + appSdPath);
@@ -113,7 +122,8 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
             protected void beforeHookedMethod(MethodHookParam param) {
                 String reqPath = (String) param.args[0];
                 if ((reqPath != null) && (!reqPath.isEmpty())) {
-                    param.args[0] = getPatchedPath(reqPath, appSdPath, appSdPath2, perAppExcludePaths);
+                    param.args[0] = getPatchedPath(reqPath, appDataPath, appSdPath, appSdPath2,
+                            perAppExcludePaths);
                 }
             }
         };
@@ -129,7 +139,8 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 
                 if ((reqPath != null) && (!reqPath.isEmpty())) {
                     param.args[0] = null;
-                    param.args[1] = getPatchedPath(reqPath, appSdPath, appSdPath2, perAppExcludePaths);
+                    param.args[1] = getPatchedPath(reqPath, appDataPath, appSdPath, appSdPath2,
+                            perAppExcludePaths);
                 }
             }
         };
@@ -147,7 +158,8 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 
                 if ((reqPath != null) && (!reqPath.isEmpty())) {
                     param.args[0] = null;
-                    param.args[1] = getPatchedPath(reqPath, appSdPath, appSdPath2, perAppExcludePaths);
+                    param.args[1] = getPatchedPath(reqPath, appDataPath, appSdPath, appSdPath2,
+                            perAppExcludePaths);
                 }
             }
         };
@@ -161,7 +173,8 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
                 if ((reqURI != null) && fileScheme.equals(reqURI.getScheme())) {
                     String reqPath = reqURI.getPath();
                     if (!reqPath.isEmpty()) {
-                        param.args[0] = getPatchedPath(reqPath, appSdPath, appSdPath2, perAppExcludePaths);
+                        param.args[0] = getPatchedPath(reqPath, appDataPath, appSdPath, appSdPath2,
+                                perAppExcludePaths);
                     }
                 }
             }
@@ -256,11 +269,6 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
     }
 
     private static String getCanonicalPath(String reqPath) {
-        if (reqPath.charAt(0) != File.separatorChar) {
-            // convert relative path to absolute path
-            reqPath = getAbsolutePath(reqPath);
-        }
-
         reqPath = reqPath.replaceAll(separatorChars, File.separator);
         reqPath = reqPath.replaceAll(dotMulti, dot2);
 
@@ -288,46 +296,43 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         return reqPath;
     }
 
-    private String getPatchedPath(String reqPath, String appSdPath, String appSdPath2,
-                                  String[] perAppExcludePaths) {
-        debug("request path " + reqPath);
+    private String getPatchedPath(String reqPath, String appDataPath, String appSdPath,
+                                  String appSdPath2, String[] perAppExcludePaths) {
+        debug("request path '" + reqPath + "'");
+
+        if (reqPath.charAt(0) != File.separatorChar) {
+            // convert relative path to absolute path
+            reqPath = appDataPath + File.separator + reqPath;
+            //trace("expand relative path to '" + reqPath + "'");
+        }
 
         reqPath = getCanonicalPath(reqPath);
-        int pathLen = reqPath.length();
-        if (pathLen < internalSdLen) {
-            return reqPath;
-        }
 
         if (reqPath.startsWith(internalSd)) {
-            if (pathLen > internalSdLen) {
-                String subPath = reqPath.substring(internalSdLen);
-                String subPath2 = subPath.toLowerCase();
-                debug("sub path " + subPath);
+            String subPath = reqPath.substring(internalSdLen);
+            String subPath2 = subPath.toLowerCase();
+            debug("sub path '" + subPath + "'");
 
-                if (subPath2.startsWith(appSdPath2)) {
-                    int appSdPathLen = appSdPath2.length();
-                    subPath2 = subPath2.substring(appSdPathLen);
+            if (subPath2.startsWith(appSdPath2)) {
+                int appSdPathLen = appSdPath2.length();
+                subPath2 = subPath2.substring(appSdPathLen);
 
-                    if (isExcludePath(subPath2, perAppExcludePaths) ||
-                            ((excludePaths != null) && isExcludePath(subPath2, excludePaths))) {
-                        debug("patched path with exclude path, revert it back");
-                        reqPath = internalSd + subPath.substring(appSdPathLen);
-                    } else {
-                        debug("patched path, ignore");
-                    }
+                if (isExcludePath(subPath2, perAppExcludePaths) ||
+                        ((excludePaths != null) && isExcludePath(subPath2, excludePaths))) {
+                    debug("patched path with exclude path, revert it back");
+                    reqPath = internalSd + subPath.substring(appSdPathLen);
                 } else {
-                    if ((!isExcludePath(subPath2, perAppExcludePaths)) &&
-                            ((excludePaths == null) || (!isExcludePath(subPath2, excludePaths)))) {
-                        reqPath = internalSd + appSdPath + subPath;
-                    }
+                    debug("patched path, ignore");
                 }
             } else {
-                reqPath = internalSd + appSdPath;
+                if ((!isExcludePath(subPath2, perAppExcludePaths)) &&
+                        ((excludePaths == null) || (!isExcludePath(subPath2, excludePaths)))) {
+                    reqPath = internalSd + appSdPath + subPath;
+                }
             }
-
-            debug("returned path " + reqPath);
         }
 
+        debug("returned path '" + reqPath + "'");
         return reqPath;
     }
 
@@ -361,16 +366,10 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
     }
 
     private static String getCombinedPath(String parentPath, String childPath) {
-        String newPath;
-        if (childPath == null) {
-            newPath = childPath;
-        } else if (parentPath == null) {
-            newPath = childPath;
-        } else if (parentPath.isEmpty()) {
-            newPath = File.separator + childPath;
+        if ((childPath == null) || (parentPath == null)) {
+            return childPath;
         } else {
-            newPath = parentPath + File.separator + childPath;
+            return parentPath + File.separator + childPath;
         }
-        return newPath;
     }
 }
