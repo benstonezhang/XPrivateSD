@@ -79,11 +79,11 @@ public class Preferences extends Activity {
                     new Preference.OnPreferenceChangeListener() {
                         @Override
                         public boolean onPreferenceChange(Preference preference, Object newValue) {
-                            String[] paths = ((String) newValue).split(Common.wrapString);
+                            String[] paths = ((String) newValue).split(Common.WRAP_STRING);
                             for (int i=0; i<paths.length; i++) {
                                 paths[i] = paths[i].trim();
                             }
-                            String newPath = TextUtils.join(Common.wrapString, paths);
+                            String newPath = TextUtils.join(Common.WRAP_STRING, paths);
                             preference.setSummary(newPath);
                             Toast.makeText(context, R.string.reboot_required, Toast.LENGTH_LONG).show();
                             return true;

@@ -64,7 +64,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 
         final String excludePathStr = prefs.getString(Common.EXCLUDE_PATH, Common.EMPTY_PATH);
         if (!excludePathStr.isEmpty()) {
-            excludePaths = excludePathStr.split(Common.wrapString);
+            excludePaths = excludePathStr.split(Common.WRAP_STRING);
             for (int i = 0; i< excludePaths.length; i++) {
                 excludePaths[i] = File.separator + excludePaths[i].toLowerCase();
             }
@@ -83,16 +83,15 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         }
 
         prefs.reload();
-        String packageName = lpparam.packageName;
+        final String packageName = lpparam.packageName;
 
         if (!isEnabledApp(lpparam)) {
             return;
         }
 
-        final String appDataPath = Common.DATA_PATH + File.separator + packageName;
         final String appSdPath = appSdBase + File.separator + packageName;
         final String appSdPath2 = appSdPath.toLowerCase();
-        debug("app data path is " + appDataPath + ", sd path is " + internalSd + appSdPath);
+        debug("app sd path is " + internalSd + appSdPath);
 
         //make missing dirs
         File perAppPath = new File(internalSd + appSdPath);
@@ -111,7 +110,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
             protected void beforeHookedMethod(MethodHookParam param) {
                 String reqPath = (String) param.args[0];
                 if ((reqPath != null) && (!reqPath.isEmpty())) {
-                    param.args[0] = getPatchedPath(reqPath, appDataPath, appSdPath, appSdPath2);
+                    param.args[0] = getPatchedPath(reqPath, appSdPath, appSdPath2);
                 }
             }
         };
@@ -120,15 +119,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         XC_MethodHook fileHook2 = new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                String reqPath = (String) param.args[0];
-                String childPath = (String) param.args[1];
-
-                reqPath = getCombinedPath(reqPath, childPath);
-
-                if ((reqPath != null) && (!reqPath.isEmpty())) {
-                    param.args[0] = null;
-                    param.args[1] = getPatchedPath(reqPath, appDataPath, appSdPath, appSdPath2);
-                }
+                getPatchedPaths(param.args, (String) param.args[0], (String) param.args[1], appSdPath, appSdPath2);
             }
         };
         XposedHelpers.findAndHookConstructor("java.io.File", lpparam.classLoader,
@@ -137,16 +128,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         XC_MethodHook fileHook3 = new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                File reqFile = (File) param.args[0];
-                String reqPath = reqFile != null ? getRealPath(reqFile) : null;
-                String childPath = (String) param.args[1];
-
-                reqPath = getCombinedPath(reqPath, childPath);
-
-                if ((reqPath != null) && (!reqPath.isEmpty())) {
-                    param.args[0] = null;
-                    param.args[1] = getPatchedPath(reqPath, appDataPath, appSdPath, appSdPath2);
-                }
+                getPatchedPaths(param.args, (File) param.args[0], (String) param.args[1], appSdPath, appSdPath2);
             }
         };
         XposedHelpers.findAndHookConstructor("java.io.File", lpparam.classLoader,
@@ -159,7 +141,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
                 if ((reqURI != null) && fileScheme.equals(reqURI.getScheme())) {
                     String reqPath = reqURI.getPath();
                     if (!reqPath.isEmpty()) {
-                        param.args[0] = getPatchedPath(reqPath, appDataPath, appSdPath, appSdPath2);
+                        param.args[0] = getPatchedPath(reqPath, appSdPath, appSdPath2);
                     }
                 }
             }
@@ -169,44 +151,49 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 //        XC_MethodHook externalStorageDirHook = new XC_MethodHook() {
 //            @Override
 //            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                File oldDirPath = (File) param.getResult();
-//                if (oldDirPath != null) {
-//                    param.setResult(getPatchedDir(oldDirPath, appSdPath, appSdPath2));
+//                File oldDir = (File) param.getResult();
+//                if (oldDir != null) {
+//                    log(packageName + " getExternalStorageDirectory '" +
+//                            oldDir.getAbsolutePath() + "'");
 //                }
 //            }
 //        };
-//        XposedHelpers.findAndHookMethod(Environment.class, "getExternalStorageDirectory", externalStorageDirHook);
+//        XposedHelpers.findAndHookMethod(Environment.class, "getExternalStorageDirectory",
+//                externalStorageDirHook);
 //        XposedHelpers.findAndHookMethod(Environment.class, "getExternalStoragePublicDirectory",
 //                String.class, externalStorageDirHook);
-
+//
 //        XC_MethodHook externalFilesDirHook = new XC_MethodHook() {
 //            @Override
 //            protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                File oldDirPath = (File) param.getResult();
-//                if (oldDirPath != null) {
-//                    param.setResult(getOriginalDir(oldDirPath, appSdPath2));
+//                File oldDir = (File) param.getResult();
+//                if (oldDir != null) {
+//                    log(packageName + " getExternalFilesDir '" + oldDir.getAbsolutePath() + "'");
 //                }
 //            }
 //        };
-//        XposedHelpers.findAndHookMethod(XposedHelpers.findClass("android.app.ContextImpl", lpparam.classLoader),
+//        XposedHelpers.findAndHookMethod(XposedHelpers.findClass("android.app.ContextImpl",
+//                lpparam.classLoader),
 //                "getExternalFilesDir", String.class, externalFilesDirHook);
-//        XposedHelpers.findAndHookMethod(XposedHelpers.findClass("android.app.ContextImpl", lpparam.classLoader),
+//        XposedHelpers.findAndHookMethod(XposedHelpers.findClass("android.app.ContextImpl",
+//                lpparam.classLoader),
 //                "getObbDir", externalFilesDirHook);
 //
 //        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
 //            XC_MethodHook externalStorageDirsHook = new XC_MethodHook() {
 //                @Override
 //                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                    File[] oldDirPaths = (File[]) param.getResult();
-//                    File[] newDirPaths = new File[oldDirPaths.length];
-//                    for (int i=0; i<oldDirPaths.length; i++) {
-//                        newDirPaths[i] = getOriginalDir(oldDirPaths[i], appSdPath2);
-//                        debug("externalStorageDirs is " + newDirPaths[i]);
+//                    File[] oldDirs = (File[]) param.getResult();
+//                    if (oldDirs.length > 0) {
+//                        String[] oldPaths = new String[oldDirs.length];
+//                        for (int i=0; i<oldDirs.length; i++) {
+//                            oldPaths[i] = oldDirs[i].getAbsolutePath();
+//                        }
+//                        log(packageName + " getExternalFilesDirs '" +
+//                                TextUtils.join(File.pathSeparator, oldPaths) + "'");
 //                    }
-//                    param.setResult(newDirPaths);
 //                }
 //            };
-//
 //            XposedHelpers.findAndHookMethod(XposedHelpers.findClass("android.app.ContextImpl", lpparam.classLoader),
 //                    "getExternalFilesDirs", String.class, externalStorageDirsHook);
 //            XposedHelpers.findAndHookMethod(XposedHelpers.findClass("android.app.ContextImpl", lpparam.classLoader),
@@ -257,22 +244,18 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         reqPath = reqPath.replaceAll(separatorChars, File.separator);
         reqPath = reqPath.replaceAll(dotMulti, dot2);
 
-        if (reqPath.indexOf(dot) >= 0) {
+        if (reqPath.contains(dot2)) {
             // resolve all relative path
-            ArrayList<String> dirStack = new ArrayList<>();
-            dirStack.add(0, Common.EMPTY_PATH);
-
             int count = 0;
+            ArrayList<String> dirStack = new ArrayList<>();
             String[] dirs = reqPath.split(File.separator);
             for (String dir : dirs) {
-                if (!dir.isEmpty()) {
-                    if (dir.charAt(0) != dot) {
-                        dirStack.add(dir);
-                        count += 1;
-                    } else if (dir.equals(dot2) && (count > 0)) {
-                        count -= 1;
-                        dirStack.remove(count);
-                    }
+                if (dir.isEmpty() || (dir.charAt(0) != dot)) {
+                    dirStack.add(dir);
+                    count += 1;
+                } else if (dir.equals(dot2) && (count > 0)) {
+                    count -= 1;
+                    dirStack.remove(count);
                 }
             }
             reqPath = TextUtils.join(File.separator, dirStack);
@@ -281,14 +264,12 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         return reqPath;
     }
 
-    private String getPatchedPath(String reqPath, String appDataPath, String appSdPath,
-                                  String appSdPath2) {
+    private String getPatchedPath(String reqPath, String appSdPath, String appSdPath2) {
         debug("request path '" + reqPath + "'");
 
         if (reqPath.charAt(0) != File.separatorChar) {
-            // convert relative path to absolute path
-            reqPath = appDataPath + File.separator + reqPath;
-            //trace("expand relative path to '" + reqPath + "'");
+            // path relative to app's data folder /data/data/<package>
+            return reqPath;
         }
 
         reqPath = getCanonicalPath(reqPath);
@@ -317,6 +298,50 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
 
         debug("returned path '" + reqPath + "'");
         return reqPath;
+    }
+
+    private void getPatchedPaths(Object[] args, String parentPath, String childPath,
+                                 String appSdPath, String appSdPath2) {
+        if (childPath != null) {
+            if (!childPath.isEmpty()) {
+                if (parentPath != null) {
+                    parentPath = getCanonicalPath(parentPath);
+                    childPath = getCanonicalPath(childPath);
+                    String reqPath = getPatchedPath(parentPath + File.separator + childPath, appSdPath, appSdPath2);
+                    if (reqPath.endsWith(childPath)) {
+                        args[0] = reqPath.substring(0, reqPath.length() - childPath.length());
+                    } else {
+                        args[0] = null;
+                        args[1] = reqPath;
+                    }
+                } else {
+                    args[1] = getPatchedPath(childPath, appSdPath, appSdPath2);
+                }
+            } else if ((parentPath != null) && (!parentPath.isEmpty())) {
+                args[0] = getPatchedPath(parentPath, appSdPath, appSdPath2);
+            }
+        }
+    }
+
+    private void getPatchedPaths(Object[] args, File parentDir, String childPath,
+                                 String appSdPath, String appSdPath2) {
+        if ((childPath != null) && (!childPath.isEmpty()) &&
+                (childPath.contains(Common.PARENT_DIR))) {
+            String parentPath = parentDir != null ? getRealPath(parentDir) : null;
+            if (parentPath != null) {
+                if (!parentPath.isEmpty()) {
+                    String reqPath = getPatchedPath(parentPath + File.separator + childPath, appSdPath, appSdPath2);
+                    if (reqPath.startsWith(parentPath)) {
+                        args[1] = reqPath.substring(parentPath.length());
+                    } else {
+                        args[0] = null;
+                        args[1] = reqPath;
+                    }
+                }
+            } else {
+                args[1] = getPatchedPath(childPath, appSdPath, appSdPath2);
+            }
+        }
     }
 
 //    private File getPatchedDir(File reqFile, String appSdPath, String appSdPath2) {
