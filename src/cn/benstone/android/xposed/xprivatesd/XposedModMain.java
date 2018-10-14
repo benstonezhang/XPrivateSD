@@ -108,10 +108,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         XC_MethodHook fileHook1 = new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                String reqPath = (String) param.args[0];
-                if ((reqPath != null) && (!reqPath.isEmpty())) {
-                    param.args[0] = getPatchedPath(reqPath, appSdPath, appSdPath2);
-                }
+                fileHookCallback1(param, appSdPath, appSdPath2);
             }
         };
         XposedHelpers.findAndHookConstructor("java.io.File", lpparam.classLoader, String.class, fileHook1);
@@ -119,7 +116,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         XC_MethodHook fileHook2 = new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                getPatchedPaths(param.args, (String) param.args[0], (String) param.args[1], appSdPath, appSdPath2);
+                fileHookCallback2(param, appSdPath, appSdPath2);
             }
         };
         XposedHelpers.findAndHookConstructor("java.io.File", lpparam.classLoader,
@@ -128,7 +125,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         XC_MethodHook fileHook3 = new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                getPatchedPaths(param.args, (File) param.args[0], (String) param.args[1], appSdPath, appSdPath2);
+                fileHookCallback3(param, appSdPath, appSdPath2);
             }
         };
         XposedHelpers.findAndHookConstructor("java.io.File", lpparam.classLoader,
@@ -137,13 +134,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         XC_MethodHook fileHook4 = new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                URI reqURI = (URI) param.args[0];
-                if ((reqURI != null) && fileScheme.equals(reqURI.getScheme())) {
-                    String reqPath = reqURI.getPath();
-                    if (!reqPath.isEmpty()) {
-                        param.args[0] = getPatchedPath(reqPath, appSdPath, appSdPath2);
-                    }
-                }
+                fileHookCallback4(param, appSdPath, appSdPath2);
             }
         };
         XposedHelpers.findAndHookConstructor("java.io.File", lpparam.classLoader, URI.class, fileHook4);
@@ -300,47 +291,79 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         return reqPath;
     }
 
-    private void getPatchedPaths(Object[] args, String parentPath, String childPath,
-                                 String appSdPath, String appSdPath2) {
-        if (childPath != null) {
+    private void fileHookCallback1(XC_MethodHook.MethodHookParam param, String appSdPath, String appSdPath2) {
+        if (param.args[0] != null) {
+            String reqPath = (String) param.args[0];
+            if (!reqPath.isEmpty()) {
+                param.args[0] = getPatchedPath(reqPath, appSdPath, appSdPath2);
+            }
+        } else {
+            param.setThrowable(new NullPointerException());
+        }
+    }
+
+    private void fileHookCallback2(XC_MethodHook.MethodHookParam param, String appSdPath, String appSdPath2) {
+        if (param.args[1] != null) {
+            String parentPath = (String) param.args[0];
+            String childPath = (String) param.args[1];
             if (!childPath.isEmpty()) {
                 if (parentPath != null) {
                     parentPath = getCanonicalPath(parentPath);
                     childPath = getCanonicalPath(childPath);
                     String reqPath = getPatchedPath(parentPath + File.separator + childPath, appSdPath, appSdPath2);
                     if (reqPath.endsWith(childPath)) {
-                        args[0] = reqPath.substring(0, reqPath.length() - childPath.length());
+                        param.args[0] = reqPath.substring(0, reqPath.length() - childPath.length());
                     } else {
-                        args[0] = null;
-                        args[1] = reqPath;
+                        param.args[0] = null;
+                        param.args[1] = reqPath;
                     }
                 } else {
-                    args[1] = getPatchedPath(childPath, appSdPath, appSdPath2);
+                    param.args[1] = getPatchedPath(childPath, appSdPath, appSdPath2);
                 }
             } else if ((parentPath != null) && (!parentPath.isEmpty())) {
-                args[0] = getPatchedPath(parentPath, appSdPath, appSdPath2);
+                param.args[0] = getPatchedPath(parentPath, appSdPath, appSdPath2);
             }
+        } else {
+            param.setThrowable(new NullPointerException());
         }
     }
 
-    private void getPatchedPaths(Object[] args, File parentDir, String childPath,
-                                 String appSdPath, String appSdPath2) {
-        if ((childPath != null) && (!childPath.isEmpty()) &&
-                (childPath.contains(Common.PARENT_DIR))) {
-            String parentPath = parentDir != null ? getRealPath(parentDir) : null;
-            if (parentPath != null) {
-                if (!parentPath.isEmpty()) {
-                    String reqPath = getPatchedPath(parentPath + File.separator + childPath, appSdPath, appSdPath2);
-                    if (reqPath.startsWith(parentPath)) {
-                        args[1] = reqPath.substring(parentPath.length());
-                    } else {
-                        args[0] = null;
-                        args[1] = reqPath;
+    private void fileHookCallback3(XC_MethodHook.MethodHookParam param, String appSdPath, String appSdPath2) {
+        if (param.args[1] != null) {
+            String childPath = (String) param.args[1];
+            if ((!childPath.isEmpty()) && (childPath.contains(Common.PARENT_DIR))) {
+                String parentPath = param.args[0] != null ? getRealPath((File) param.args[0]) : null;
+                if (parentPath != null) {
+                    if (!parentPath.isEmpty()) {
+                        String reqPath = getPatchedPath(parentPath + File.separator + childPath,
+                                appSdPath, appSdPath2);
+                        if (reqPath.startsWith(parentPath)) {
+                            param.args[1] = reqPath.substring(parentPath.length());
+                        } else {
+                            param.args[0] = null;
+                            param.args[1] = reqPath;
+                        }
                     }
+                } else {
+                    param.args[1] = getPatchedPath(childPath, appSdPath, appSdPath2);
                 }
-            } else {
-                args[1] = getPatchedPath(childPath, appSdPath, appSdPath2);
             }
+        } else {
+            param.setThrowable(new NullPointerException());
+        }
+    }
+
+    private void fileHookCallback4(XC_MethodHook.MethodHookParam param, String appSdPath, String appSdPath2) {
+        if (param.args[0] != null) {
+            URI reqURI = (URI) param.args[0];
+            if (fileScheme.equals(reqURI.getScheme())) {
+                String reqPath = reqURI.getPath();
+                if (!reqPath.isEmpty()) {
+                    param.args[0] = getPatchedPath(reqPath, appSdPath, appSdPath2);
+                }
+            }
+        } else {
+            param.setThrowable(new NullPointerException());
         }
     }
 
