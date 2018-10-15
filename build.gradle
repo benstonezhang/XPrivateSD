@@ -2,30 +2,40 @@
 
 buildscript {
     repositories {
+        google()
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.3.3'
-        // NOTE: Do not place your application dependencies here; they belong
-        // in the individual module build.gradle files
+        classpath 'com.android.tools.build:gradle:3.1.+'
     }
 }
 
 allprojects {
     repositories {
         jcenter()
+        mavenCentral()
+        maven {
+            url 'https://maven.google.com'
+        }
     }
 }
 
 apply plugin: 'com.android.application'
 
 dependencies {
-    provided 'de.robv.android.xposed:api:82'
+    //implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    // https://developer.android.com/topic/libraries/support-library/revisions.html
+    //implementation 'com.android.support:appcompat-v7:27.+'
+
+    // https://github.com/rovo89/XposedBridge/wiki/Using-the-Xposed-Framework-API
+    // https://bintray.com/rovo89/de.robv.android.xposed/api
+    compileOnly 'de.robv.android.xposed:api:82'
+    compileOnly 'de.robv.android.xposed:api:82:sources'
 }
 
 android {
     compileSdkVersion 23
-    buildToolsVersion '25.0.0'
 
     buildTypes {
         release {
