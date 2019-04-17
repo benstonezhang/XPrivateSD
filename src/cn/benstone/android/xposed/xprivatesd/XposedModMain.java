@@ -266,6 +266,11 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
         reqPath = getCanonicalPath(reqPath);
 
         if (reqPath.startsWith(internalSd)) {
+            // in the sandbox, no need to create file .nomedia in sub folders
+            if (reqPath.endsWith(Common.FILE_NOMEDIA)) {
+                return internalSd + appSdPath + File.separator + Common.FILE_NOMEDIA;
+            }
+
             String subPath = reqPath.substring(internalSdLen);
             String subPath2 = subPath.toLowerCase();
             debug("sub path '" + subPath + "'");

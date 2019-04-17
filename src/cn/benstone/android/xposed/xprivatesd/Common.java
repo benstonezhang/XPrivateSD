@@ -8,7 +8,7 @@ import android.os.Environment;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
+//import java.util.Arrays;
 
 public class Common {
 
@@ -28,6 +28,7 @@ public class Common {
 
     public static final String DEFAULT_PER_APP_PATH = "AppSD";
     public static final String EMPTY_PATH = "";
+    public static final String FILE_NOMEDIA = ".nomedia";
 
     public static final String WRAP_STRING = "\n";
     public static final String PARENT_DIR = "..";
@@ -96,9 +97,9 @@ public class Common {
                 return false;
             }
         }
-        if (Arrays.asList(MTP_APPS).contains(packageName)) {
-            return false;
-        }
+//        if (Arrays.asList(MTP_APPS).contains(packageName)) {
+//            return false;
+//        }
         return true;
     }
 }
