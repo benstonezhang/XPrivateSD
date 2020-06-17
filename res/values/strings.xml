@@ -5,7 +5,10 @@
     <string name="internal_sdcard_path">Path to internal SD card</string>
     <string name="per_app_path">Sandbox path for apps</string>
     <string name="include_system_apps">Include system apps</string>
+    <string name="exclude_mtp">Exclude MTP apps</string>
+    <string name="no_media_scan">Prevent media scan</string>
     <string name="enabled_apps">Enabled apps</string>
     <string name="exclude_path">Exclude paths</string>
     <string name="reboot_required">Device reboot is required for changes to take effect.</string>
+    <string name="log_debug">Log debug information</string>
 </resources>

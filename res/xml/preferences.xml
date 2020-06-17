@@ -7,6 +7,10 @@
             android:singleLine="true"
             android:key="internal_sdcard_path"
             android:title="@string/internal_sdcard_path" />
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="log_debug"
+            android:title="@string/log_debug" />
         <EditTextPreference
             android:singleLine="true"
             android:key="per_app_path"
@@ -15,11 +19,20 @@
             android:defaultValue="false"
             android:key="include_system_apps"
             android:title="@string/include_system_apps" />
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="exclude_mtp"
+            android:title="@string/exclude_mtp"
+            android:enabled="false"/>
         <MultiSelectListPreference
             android:key="enabled_apps"
             android:title="@string/enabled_apps" />
         <EditTextPreference
             android:key="exclude_path"
             android:title="@string/exclude_path" />
+        <CheckBoxPreference
+            android:defaultValue="true"
+            android:key="no_media_scan"
+            android:title="@string/no_media_scan" />
     </PreferenceCategory>
 </PreferenceScreen>

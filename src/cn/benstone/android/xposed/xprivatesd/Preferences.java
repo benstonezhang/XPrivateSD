@@ -7,16 +7,17 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.CheckBoxPreference;
 import android.preference.EditTextPreference;
 import android.preference.MultiSelectListPreference;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceManager;
 import android.text.TextUtils;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Toast;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -25,13 +26,11 @@ import java.util.List;
 import java.util.Set;
 
 public class Preferences extends Activity {
-    public static Context context;
     public static SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        context = getApplicationContext();
         getFragmentManager().beginTransaction().replace(android.R.id.content, new Settings()).commit();
     }
 
@@ -43,18 +42,18 @@ public class Preferences extends Activity {
             getPreferenceManager().setSharedPreferencesMode(MODE_WORLD_READABLE);
             addPreferencesFromResource(R.xml.preferences);
 
+            final Context context = getActivity();
             prefs = PreferenceManager.getDefaultSharedPreferences(context);
-            String internalSd = prefs.getString(Common.INTERNAL_SDCARD_PATH, null);
-            if (internalSd == null) {
-                internalSd = Common.getInternalStoragePath();
-            }
-            EditTextPreference internalSdPath = (EditTextPreference) findPreference(Common.INTERNAL_SDCARD_PATH);
+
+            final String internalSd = Common.getInternalStoragePath();
+            final EditTextPreference internalSdPath = (EditTextPreference) findPreference(Common.INTERNAL_SDCARD_PATH);
             internalSdPath.setSummary(internalSd);
             internalSdPath.setText(internalSd);
             internalSdPath.setEnabled(false);
+            internalSdPath.setPersistent(false);
 
-            String perAppPath = prefs.getString(Common.PER_APP_PATH, Common.DEFAULT_PER_APP_PATH);
-            EditTextPreference patchedInternalSdPath = (EditTextPreference) findPreference(Common.PER_APP_PATH);
+            final String perAppPath = prefs.getString(Common.PER_APP_PATH, Common.DEFAULT_PER_APP_PATH);
+            final EditTextPreference patchedInternalSdPath = (EditTextPreference) findPreference(Common.PER_APP_PATH);
             patchedInternalSdPath.setSummary(perAppPath);
             patchedInternalSdPath.setText(perAppPath);
             patchedInternalSdPath.setOnPreferenceChangeListener(
@@ -71,8 +70,8 @@ public class Preferences extends Activity {
                         }
                     });
 
-            String excludePath = prefs.getString(Common.EXCLUDE_PATH, Common.EMPTY_PATH);
-            EditTextPreference excludePathEdit = (EditTextPreference) findPreference(Common.EXCLUDE_PATH);
+            final String excludePath = prefs.getString(Common.EXCLUDE_PATH, Common.EMPTY_PATH);
+            final EditTextPreference excludePathEdit = (EditTextPreference) findPreference(Common.EXCLUDE_PATH);
             excludePathEdit.setSummary(excludePath);
             excludePathEdit.setText(excludePath);
             excludePathEdit.setOnPreferenceChangeListener(
@@ -80,21 +79,29 @@ public class Preferences extends Activity {
                         @Override
                         public boolean onPreferenceChange(Preference preference, Object newValue) {
                             String[] paths = ((String) newValue).split(Common.WRAP_STRING);
-                            for (int i=0; i<paths.length; i++) {
+                            for (int i = 0; i < paths.length; i++) {
                                 paths[i] = paths[i].trim();
                             }
                             String newPath = TextUtils.join(Common.WRAP_STRING, paths);
                             preference.setSummary(newPath);
-                            Toast.makeText(context, R.string.reboot_required, Toast.LENGTH_LONG).show();
+                            Toast.makeText(context, R.string.reboot_required,
+                                    Toast.LENGTH_LONG).show();
                             return true;
                         }
                     });
 
-            Preference includeSystemApps = findPreference(Common.INCLUDE_SYSTEM_APPS);
+            final CheckBoxPreference excludeMtpApps = (CheckBoxPreference)findPreference(Common.EXCLUDE_MTP);
+
+            final Preference includeSystemApps = findPreference(Common.INCLUDE_SYSTEM_APPS);
             includeSystemApps.setOnPreferenceChangeListener(
                     new Preference.OnPreferenceChangeListener() {
                         @Override
                         public boolean onPreferenceChange(Preference preference, Object newValue) {
+                            Boolean enabled = (Boolean) newValue;
+                            excludeMtpApps.setEnabled(enabled);
+                            if (!enabled) {
+                                excludeMtpApps.setChecked(true);
+                            }
                             reloadAppsList();
                             return true;
                         }
@@ -103,28 +110,23 @@ public class Preferences extends Activity {
             reloadAppsList();
         }
 
-        @Override
-        public void onPause() {
-            super.onPause();
-
-            // Set preferences file permissions to be world readable
-            File prefsDir = new File(getActivity().getApplicationInfo().dataDir, "shared_prefs");
-            File prefsFile = new File(prefsDir, getPreferenceManager().getSharedPreferencesName() + ".xml");
-            if (prefsFile.exists()) {
-                prefsFile.setReadable(true, false);
-            }
-        }
-
         public void reloadAppsList() {
-            new LoadApps().execute();
+            new LoadApps((MultiSelectListPreference) findPreference(Common.ENABLED_APPS),
+                    getActivity().getPackageManager()).execute();
         }
 
-        public class LoadApps extends AsyncTask<Void, Void, Void> {
-            MultiSelectListPreference enabledApps = (MultiSelectListPreference) findPreference(Common.ENABLED_APPS);
+        static class LoadApps extends AsyncTask<Void, Void, Void> {
             List<CharSequence> appNames = new ArrayList<>();
             List<CharSequence> packageNames = new ArrayList<>();
-            PackageManager pm = context.getPackageManager();
-            List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+            MultiSelectListPreference enabledApps;
+            PackageManager pm;
+            List<ApplicationInfo> packages;
+
+            LoadApps(MultiSelectListPreference enabledApps, PackageManager pm) {
+                this.enabledApps = enabledApps;
+                this.pm = pm;
+                this.packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+            }
 
             @Override
             protected void onPreExecute() {
@@ -136,7 +138,7 @@ public class Preferences extends Activity {
                 List<String[]> sortedApps = new ArrayList<>();
 
                 for (ApplicationInfo app : packages) {
-                    if (Common.isAllowedApp(prefs, app.packageName, app.flags)) {
+                    if (Common.isAppHookAllow(prefs, app.packageName, app.flags)) {
                         sortedApps.add(new String[]{
                                 app.packageName,
                                 app.loadLabel(pm).toString()});
@@ -177,8 +179,8 @@ public class Preferences extends Activity {
 
             @Override
             protected void onPostExecute(Void result) {
-                CharSequence[] appNamesList = appNames.toArray(new CharSequence[appNames.size()]);
-                CharSequence[] packageNamesList = packageNames.toArray(new CharSequence[packageNames.size()]);
+                CharSequence[] appNamesList = appNames.toArray(new CharSequence[0]);
+                CharSequence[] packageNamesList = packageNames.toArray(new CharSequence[0]);
 
                 enabledApps.setEntries(appNamesList);
                 enabledApps.setEntryValues(packageNamesList);
@@ -187,9 +189,11 @@ public class Preferences extends Activity {
                 Preference.OnPreferenceClickListener listener = new Preference.OnPreferenceClickListener() {
                     @Override
                     public boolean onPreferenceClick(Preference preference) {
-                        ((MultiSelectListPreference) preference).getDialog().getWindow().setLayout(
-                                WindowManager.LayoutParams.FILL_PARENT,
-                                WindowManager.LayoutParams.FILL_PARENT);
+                        Window win = ((MultiSelectListPreference) preference).getDialog().getWindow();
+                        if (win != null) {
+                            win.setLayout(WindowManager.LayoutParams.FILL_PARENT,
+                                    WindowManager.LayoutParams.FILL_PARENT);
+                        }
                         return false;
                     }
                 };
