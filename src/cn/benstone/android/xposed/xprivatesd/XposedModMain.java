@@ -170,7 +170,7 @@ public class XposedModMain implements IXposedHookZygoteInit, IXposedHookLoadPack
             log("checking package " + lpparam.packageName);
         }
 
-        int appFlags = lpparam.appInfo == null ? ApplicationInfo.FLAG_SYSTEM : lpparam.appInfo.flags;
+        int appFlags = lpparam.appInfo == null ? 0 : lpparam.appInfo.flags;
         if (!Common.isAppHookAllow(prefs, lpparam.packageName, appFlags)) {
             return false;
         }
