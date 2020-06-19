@@ -1,6 +1,5 @@
 package cn.benstone.android.xposed.xprivatesd;
 
-import android.content.pm.ApplicationInfo;
 import android.text.TextUtils;
 
 import java.io.File;
