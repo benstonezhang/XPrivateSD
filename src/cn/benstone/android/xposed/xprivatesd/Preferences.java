@@ -16,7 +16,7 @@ import android.preference.PreferenceManager;
 import android.text.TextUtils;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.Toast;
+//import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -65,7 +65,7 @@ public class Preferences extends Activity {
                                 newPath = Common.DEFAULT_PER_APP_PATH;
                             }
                             preference.setSummary(newPath);
-                            Toast.makeText(context, R.string.reboot_required, Toast.LENGTH_LONG).show();
+//                            Toast.makeText(context, R.string.reboot_required,Toast.LENGTH_LONG).show();
                             return true;
                         }
                     });
@@ -84,8 +84,7 @@ public class Preferences extends Activity {
                             }
                             String newPath = TextUtils.join(Common.WRAP_STRING, paths);
                             preference.setSummary(newPath);
-                            Toast.makeText(context, R.string.reboot_required,
-                                    Toast.LENGTH_LONG).show();
+//                            Toast.makeText(context, R.string.reboot_required, Toast.LENGTH_LONG).show();
                             return true;
                         }
                     });
