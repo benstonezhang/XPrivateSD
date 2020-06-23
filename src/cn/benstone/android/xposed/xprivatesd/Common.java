@@ -80,10 +80,10 @@ class Common {
 //        return externalSd;
 //    }
 
-    static boolean isAppHookAllow(SharedPreferences prefs, String packageName, int appFlags) {
+    static boolean isAppHookAllow(SharedPreferences prefs, String appName, int appFlags) {
         return ((appFlags & ApplicationInfo.FLAG_SYSTEM) == 0) ||
                 ((prefs.getBoolean(INCLUDE_SYSTEM_APPS, false)) &&
                         (!prefs.getBoolean(EXCLUDE_MTP, true) ||
-                                !mtp_apps.contains(packageName)));
+                                !mtp_apps.contains(appName)));
     }
 }
